@@ -1,0 +1,51 @@
+{
+  "references": {
+    "D31": {
+      "mu": {
+        "C": -9.362093593238951,
+        "C_diamant": -9.266028361942608,
+        "N": -8.11857964713394,
+        "d_N2": 1.1123820783917044,
+        "O": -4.848295462390256,
+        "d_O2": 1.2366401998353733
+      },
+      "e_mol": {
+        "CO2": -22.80505452518099,
+        "N2O": -20.93599077426137
+      },
+      "controle": [
+        {
+          "espece": "CO2",
+          "ef_calc": -1.2487900023871756,
+          "ef_exp": -1.359
+        },
+        {
+          "espece": "N2O",
+          "ef_calc": 0.04982132746558913,
+          "ef_exp": 0.283
+        }
+      ]
+    }
+  },
+  "resultats": [
+    {
+      "source_id": "dia211",
+      "decoration": "V0_1_2-can-C8N2O3",
+      "formula": "C8N2O3",
+      "n_atoms": 13,
+      "dimensionality": 2,
+      "images_en_interaction": true,
+      "n_lacunes": 3,
+      "dispersion": true,
+      "converged": true,
+      "n_steps": 30,
+      "e_per_atom": -8.047889840381217,
+      "v_per_atom": 7.564923108903344,
+      "v_per_atom_template": 6.4335,
+      "e_formation": 0.08124819249187983,
+      "e_decomposition": 0.5135216548566712,
+      "valide": true,
+      "raison": ""
+    }
+  ]
+}

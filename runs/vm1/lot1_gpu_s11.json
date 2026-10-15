@@ -1,0 +1,70 @@
+{
+  "references": {
+    "D30": {
+      "mu": {
+        "C": -9.212898816328389,
+        "C_diamant": -9.074567273633203,
+        "N": -8.112650447608932,
+        "d_N2": 1.112382454330907,
+        "O": -4.844640547366216,
+        "d_O2": 1.2366408893111263
+      },
+      "e_mol": {
+        "CO2": -22.7795425458266,
+        "N2O": -20.907802006769515
+      },
+      "controle": [
+        {
+          "espece": "CO2",
+          "ef_calc": -1.2924542115885937,
+          "ef_exp": -1.359
+        },
+        {
+          "espece": "N2O",
+          "ef_calc": 0.05404647860485549,
+          "ef_exp": 0.283
+        }
+      ]
+    }
+  },
+  "resultats": [
+    {
+      "source_id": "dia221",
+      "decoration": "V0_1_7-can-C20N8O1",
+      "formula": "C20N8O",
+      "n_atoms": 29,
+      "dimensionality": 3,
+      "images_en_interaction": false,
+      "n_lacunes": 3,
+      "dispersion": false,
+      "converged": true,
+      "n_steps": 35,
+      "e_per_atom": -8.495507290642443,
+      "v_per_atom": 5.987904537539519,
+      "v_per_atom_template": 5.9392,
+      "e_formation": 0.26324513883360784,
+      "e_decomposition": 0.3300962187433621,
+      "valide": true,
+      "raison": ""
+    },
+    {
+      "source_id": "dia221",
+      "decoration": "V0_6-can-C23N6O1",
+      "formula": "C23N6O",
+      "n_atoms": 30,
+      "dimensionality": 3,
+      "images_en_interaction": false,
+      "n_lacunes": 2,
+      "dispersion": false,
+      "converged": true,
+      "n_steps": 36,
+      "e_per_atom": -8.623095002702112,
+      "v_per_atom": 5.891656139359849,
+      "v_per_atom_template": 5.8197,
+      "e_formation": 0.22414553091698128,
+      "e_decomposition": 0.2887682414964104,
+      "valide": true,
+      "raison": ""
+    }
+  ]
+}

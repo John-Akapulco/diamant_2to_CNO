@@ -2,6 +2,10 @@ __pycache__/
 *.pyc
 .DS_Store
 cache/
-runs/
 templates_dia*/
 *.log
+
+# runs/ EST versionné : les résultats de relaxation ne se régénèrent pas sans
+# calcul, et une campagne doit rester vérifiable. Les templates, eux, se
+# régénèrent en quelques secondes par gen_templates.py, donc ils restent hors
+# dépôt.

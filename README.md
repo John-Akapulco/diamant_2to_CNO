@@ -62,6 +62,22 @@ Environnement : `conda run -n mlip python ...`, ou directement
 torch 2.2.2, torch-dftd). `conda run` tamponne la sortie : pour suivre un lot
 en direct, utiliser l'interpréteur directement.
 
+## Où tournent les calculs
+
+En local sur le Mac pour la mise au point (`scripts/relax_lot.py`), sur
+**Yargla** pour les campagnes : `hpc/stage.sh yargla <lot>` transfère code et
+templates puis vérifie à distance l'environnement, la présence du projet
+jumeau et — surtout — que le checkpoint MACE y donne la **même** énergie du
+diamant qu'ici (−18.149009 eV à 2 atomes ; deux checkpoints cohabitent dans
+`~/.cache/mace` sur Yargla et ce ne sont pas le même modèle, 13 meV d'écart).
+`hpc/yargla_lot.slurm` lance ensuite N_SHARDS processus d'un thread : MACE en
+float64 sur CPU ne sature pas les cœurs, c'est le nombre de *processus* qui
+occupe le nœud. Chaque shard réécrit son JSON après chaque structure, donc un
+lot interrompu reste exploitable.
+
+Prérequis : `C_N_O_under_pressure` doit déjà être déployé sur la machine, ce
+projet importe son outillage. `CNO_UNDER_PRESSURE` le localise.
+
 ## Projet jumeau
 
 Tout l'outillage aval est réutilisé depuis

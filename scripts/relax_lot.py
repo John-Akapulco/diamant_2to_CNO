@@ -53,6 +53,9 @@ def main() -> None:
                             allow_terminal_o=True)
     src = Path(args.templates)
     man = json.loads((src / "templates_manifest.json").read_text())
+    # croissant en nombre d'atomes : les structures bon marché d'abord, pour
+    # qu'un lot interrompu ait quand même couvert les petites mailles.
+    man.sort(key=lambda e: e["n_atoms"])
     if args.limite:
         man = man[:args.limite]
 
@@ -64,6 +67,8 @@ def main() -> None:
             mu_cache[disp] = mu_elements(disp)
         return mu_cache[disp]
 
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
     resultats = []
     for e in man:
         nom = f"{e['source_id']}_{e['decoration']}_{e['child_formula']}.cif"
@@ -90,15 +95,17 @@ def main() -> None:
                 f"{v.symbol}{v.index}:{v.message}" for v in rep.violations[:4]),
         }
         resultats.append(res)
+        # écriture incrémentale : un lot de 40 structures à fmax=1e-3 dure des
+        # heures, et un résultat perdu parce que le processus s'est arrêté est
+        # un résultat à recalculer.
+        out.write_text(json.dumps(
+            {"mu": {k: v for d in mu_cache.values() for k, v in d.items()},
+             "resultats": resultats}, indent=2, ensure_ascii=False))
         print(f"{res['formula']:12s} {e['decoration'][:34]:34s} "
               f"V/at={res['v_per_atom']:5.2f} E_f={ef:+.3f} "
               f"dec={res['e_decomposition'] if res['e_decomposition'] is None else round(res['e_decomposition'], 3)} "
               f"{'OK ' if rep.ok else 'KO '}{'conv' if r.converged else 'NC'}", flush=True)
 
-    out = Path(args.out)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"mu": {k: v for d in mu_cache.values() for k, v in d.items()},
-                               "resultats": resultats}, indent=2, ensure_ascii=False))
     print(f"\n{len(resultats)} structures -> {out}")
 
 

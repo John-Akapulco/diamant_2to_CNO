@@ -20,6 +20,16 @@ couplage parfait, pourquoi la décoration canonique (`z=4→C, 3→N, 2→O`) es
 toujours valide, comment la composition est contrainte par la topologie des
 lacunes, et comment optimiser (x, y, z).
 
+**Contrainte du cahier des charges : pas de binaires.** C **et** N **et** O
+dans la même structure, exigé à l'énumération et non filtré après. `C3N4` de la
+lacune isolée est donc un témoin de validation, pas un candidat.
+
+**Bords périodiques.** Le graphe est stocké en demi-liaisons avec vecteurs
+d'image, jamais en ensembles de voisins : sous périodicité deux sites peuvent
+être liés par plusieurs images. Et il faut **64 sites** pour qu'une lacune
+cesse d'interagir avec ses propres images — en dessous, une structure est un
+réseau ordonné de lacunes, ce que chaque template déclare dans son manifeste.
+
 Trois résultats qui orientent tout le reste :
 
 - **la décoration canonique est de déficit nul partout**, donc valide au sens
@@ -36,9 +46,12 @@ Trois résultats qui orientent tout le reste :
 ## Utilisation
 
 ```bash
-# 1. engendrer les templates (lacunes + décorations)
-python scripts/gen_templates.py --mailles 1x1x1 2x1x1 2x2x1 --kmax 3 \
-    --motifs canonique --out templates_dia
+# 1. engendrer les templates (lacunes + décorations), ternaires seulement
+python scripts/gen_templates.py --mailles 1x1x1 2x1x1 2x2x1 2x2x2 --kmax 3 \
+    --motifs canonique --max-atomes 64 --out templates_dia
+
+# domaine de composition atteignable, sans aucun calcul d'énergie
+python scripts/carte_composition.py --kmax 4
 
 # 2. relaxer au MACE (volume + forme + positions), valider, calculer E_f
 python scripts/relax_lot.py templates_dia --out runs/lot1.json

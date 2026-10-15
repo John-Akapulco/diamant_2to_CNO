@@ -28,7 +28,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ase.io import write as ase_write
 
 from dia_cno import jumeau
-from dia_cno.lattice import permutations_symetrie, supermaille, voisins
+from dia_cno.lattice import (demi_liaisons, permutations_symetrie, supermaille,
+                             verifie_reseau)
 from dia_cno.templates import (Template, construit, homonucleaire, primitive,
                                signature)
 from dia_cno.vacancies import classes_de_lacunes, decorations
@@ -49,8 +50,9 @@ def main() -> None:
                     help="coordinence minimale tolérée (1 n'a de sens qu'avec oterm)")
     ap.add_argument("--max-atomes", type=int, default=24,
                     help="plafond d'atomes par maille primitive (coût DFT)")
-    ap.add_argument("--ternaire", action="store_true",
-                    help="n'accepter que les structures contenant C et N et O")
+    ap.add_argument("--binaires", action="store_true",
+                    help="accepter aussi les binaires (C-N ou C-O) ; exclus par défaut, "
+                         "le cahier des charges exige C et N et O")
     ap.add_argument("--out", default="templates_dia")
     args = ap.parse_args()
 
@@ -68,17 +70,22 @@ def main() -> None:
     for m in args.mailles:
         n = parse_maille(m)
         parent = supermaille(n)
-        adj = voisins(parent)
+        audit = verifie_reseau(parent)
+        if not audit["degre_correct"]:
+            raise RuntimeError(f"réseau incorrect pour {n} : {audit}")
+        adj = demi_liaisons(parent)
         P = permutations_symetrie(parent)
         niveaux = classes_de_lacunes(P, len(parent), adj, args.kmax, z_min=args.zmin)
         sid = f"dia{n[0]}{n[1]}{n[2]}"
-        print(f"[{sid}] {len(parent)} sites, {len(P)} opérations de symétrie")
+        print(f"[{sid}] {len(parent)} sites, {len(P)} opérations de symétrie, "
+              f"degrés {audit['degres']}, multiplicité de liaison max "
+              f"{audit['multiplicite_max']}, auto-liaisons {audit['auto_liaisons']}")
 
         for k in range(1, args.kmax + 1):
             for V in niveaux[k]:
                 stats["lacunes"] += 1
                 decs = decorations(adj, V, z_min=args.zmin, motifs=motifs,
-                                   require_ternary=args.ternaire)
+                                   require_ternary=not args.binaires)
                 if not decs:
                     stats["sans_decoration"] += 1
                 for dec in decs:
@@ -104,7 +111,10 @@ def main() -> None:
                         composition=(sym["C"], sym["N"], sym["O"]),
                         classes=dec.classes,
                         dimensionality=dimensionality(enfant),
-                        flags=homonucleaire(enfant))
+                        flags=homonucleaire(enfant),
+                        n_lacunes=len(V), b_lacunes=dec.b,
+                        recouvrement_images=dec.diagnostic["recouvrement_max"],
+                        images_en_interaction=dec.diagnostic["images_en_interaction"])
                     retenus.append(t)
                     stats["retenus"] += 1
 
@@ -119,6 +129,10 @@ def main() -> None:
         print(f"  {cle:18s} {v}")
     par_dim = Counter(t.dimensionality for t in retenus)
     print(f"  dimensionnalité    {dict(sorted(par_dim.items(), reverse=True))}")
+    n_img = sum(1 for t in retenus if t.images_en_interaction)
+    print(f"  images en interaction : {n_img}/{len(retenus)} "
+          f"(lacunes se recouvrant par plusieurs images ; réseau ordonné de "
+          f"lacunes plutôt que motif isolé)")
     print(f"\n{len(retenus)} templates -> {out}/")
 
 

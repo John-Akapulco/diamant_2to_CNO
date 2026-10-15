@@ -60,6 +60,14 @@ Les deux ambiguïtés du cahier des charges (z=3 → C ou N ; z=2 → O ou N) so
 conservées telles quelles : on énumère, on ne devine pas. C'est la doctrine du
 projet jumeau.
 
+**Pas de binaires.** Le cahier des charges exige C **et** N **et** O dans la
+même structure : `require_ternary` vaut `True` par défaut, et les binaires
+sont écartés à l'énumération, pas filtrés après. Cela comprend `C3N4` de la
+lacune isolée et les `CxOy` des paires de lacunes. Ils restent des **témoins
+de validation** de la méthode (§12), jamais des candidats. L'option
+`--binaires` existe pour reproduire la comparaison avec la campagne 1 du
+jumeau, qui ne l'exigeait pas.
+
 ## 3. La règle de Lewis devient un couplage parfait
 
 Déficit de valence d'un atome : `d_i = valence(élément) − z_i`, avec
@@ -83,6 +91,13 @@ d'oxygène, pas par un radical. On ne crée jamais d'électron célibataire. C'e
 pour cela qu'on peut creuser le diamant sans le déstabiliser électroniquement
 — à la différence de la lacune neutre du diamant pur, qui laisse quatre
 liaisons pendantes et se reconstruit.
+
+Le couplage est testé sur un **revêtement 2×2×2** du graphe quotient et non
+sur le quotient : dans le quotient un atome peut être apparié à sa propre
+image, c'est-à-dire porter une double liaison avec lui-même, ce qui ne
+correspond à aucun appariement réel dans le cristal. Même convention que
+`cno_csp.validator.pi_matching`, mais menée au niveau du graphe — assez rapide
+pour être appelée sur chaque décoration candidate.
 
 Les trois autres motifs (z=3 → C sp², z=2 → N coudé, z=1 → O terminal)
 introduisent des déficits et ne passent que si le couplage parfait existe. Ils
@@ -136,7 +151,81 @@ Deux conséquences utiles à la planification :
   2 azotes contre 1 oxygène. Optimiser la composition, c'est choisir `c`, puis
   l'agrégation des lacunes sur ce segment.
 
-## 5. Énumération des lacunes, à symétrie près
+**Domaine atteignable, mesuré** (`scripts/carte_composition.py`). Avec la
+seule décoration canonique, `k ≤ 4` lacunes et des supermailles de 8 à 32
+sites : **37 compositions ternaires C+N+O distinctes**, de `x = 0.083`
+(C1N10O1) à `x = 0.714` (C20N6O2). Le bilan de liaisons pendantes
+ci-dessus est vérifié comme contrôle interne sur chaque ensemble de lacunes
+énuméré : **0 écart**. Le domaine est donc déjà large avant même d'activer
+`sp2`, `nbent` et `oterm`, qui l'élargiront encore en découplant partiellement
+la composition de la topologie.
+
+Les compositions les plus riches en carbone — celles qui intéressent la
+densité — sont aussi les moins nombreuses : à faible concentration de lacunes
+il y a peu de façons non équivalentes de les placer. L'exploration est donc
+*bon marché là où elle est intéressante*, et c'est l'inverse de la plupart des
+recherches de structure.
+
+## 5. Les bords périodiques : deux effets distincts
+
+La supermaille est périodique, et deux choses très différentes en découlent.
+La première est un problème de code, réparé ; la seconde est dans la physique
+de la maille et ne se répare pas, elle se mesure et se déclare.
+
+**(a) Multiplicité des liaisons — corrigé.** Sous conditions périodiques deux
+sites peuvent être liés par *plusieurs* images, et un site peut être lié à sa
+*propre* image. Une liste d'adjacence par ensembles d'indices perd cette
+multiplicité, et `z_i = 4 − |V ∩ voisins(i)|` sous-compte alors les liaisons
+détruites par une lacune : le bilan de composition se décale sans prévenir. Le
+graphe est donc stocké en **demi-liaisons `(voisin, vecteur d'image)`**, et
+chaque site en a exactement 4. `lattice.verifie_reseau()` contrôle les trois
+choses à ne pas supposer — degré 4 partout, multiplicité maximale,
+auto-liaisons — et `gen_templates.py` l'exécute sur chaque supermaille avant
+d'énumérer. Mesuré :
+
+| maille | sites | multiplicité de liaison | auto-liaisons |
+|---|---|---|---|
+| primitive | 2 | **4** | 0 |
+| conventionnelle 1×1×1 → 3×3×3 | 8 → 216 | 1 | 0 |
+
+Les supermailles de la maille conventionnelle sont donc saines, et l'ancienne
+version du code n'était juste que par accident : la maille primitive, elle,
+l'aurait cassée. C'est aussi la raison pour laquelle le projet part de la
+maille conventionnelle à 8 sites et non de la primitive à 2.
+
+**(b) Interaction d'une lacune avec ses propres images — irréductible.** Dans
+la limite diluée, deux lacunes secondes voisines partagent **exactement un**
+voisin commun : le site qui devient oxygène (§4). En petite maille elles en
+partagent plusieurs, par des images différentes, et le compte d'oxygène est
+gonflé par la périodicité. Mesuré, voisins communs maximaux entre deux sites :
+
+| maille | sites | recouvrement max | limite diluée atteinte |
+|---|---|---|---|
+| 1×1×1 | 8 | 4 | non |
+| 2×1×1 | 16 | 4 | non |
+| 2×2×1 | 32 | 2 | non |
+| 2×2×2 | 64 | **1** | **oui** |
+| 3×3×3 | 216 | 1 | oui |
+
+**Il faut 64 sites pour qu'une lacune cesse de se voir elle-même.** En dessous,
+une structure n'est pas « quelques lacunes dans du diamant » mais un **réseau
+ordonné de lacunes** à forte concentration. Les deux sont des cristaux
+légitimes, relaxables, et dignes d'intérêt — mais on ne doit pas lire le motif
+local de l'un dans l'autre, et c'est pourquoi chaque template porte le
+diagnostic `recouvrement_images` et `images_en_interaction` dans son manifeste.
+
+**La tension pratique, à trancher explicitement.** La limite diluée (≥ 64
+sites) et le budget DFT (≈ 24–30 atomes par maille dans le projet jumeau) sont
+incompatibles. Sur le lot ternaire courant : 22 templates sur 41 sont exempts
+d'interaction d'images, et ils font tous 61–62 atomes. Le partage retenu :
+
+- **MACE** relaxe tout, y compris les 61–62 atomes — c'est bon marché ;
+- **DFT** se limite aux mailles de 13 à 30 atomes, en déclarant que ce sont des
+  superstructures lacunaires ordonnées et non des motifs dilués ;
+- la comparaison dilué / concentré se fait **au sein de MACE**, où les deux
+  régimes sont accessibles au même niveau de théorie.
+
+## 6. Énumération des lacunes, à symétrie près
 
 Le groupe d'espace du diamant est Fd-3m (227) : 192 opérations en maille
 conventionnelle, multipliées par les translations de la supermaille (1536
@@ -169,7 +258,7 @@ admissible n'existe*. Sans elle la génération explose dès 32 sites.
 C'est dérisoire : l'exhaustivité est atteignable jusqu'à k≈4–6, et le facteur
 limitant n'est pas l'énumération mais la relaxation.
 
-## 6. Symétrisation vers la maille primitive
+## 7. Symétrisation vers la maille primitive
 
 Chaque structure construite est passée à `spglib.standardize_cell(to_primitive=True)`.
 Deux rôles **distincts**, et c'est pour cela que l'étape est à cet endroit du
@@ -188,7 +277,7 @@ doublons **avant** toute relaxation, là où le projet jumeau ne les écartait
 qu'après (132 structures validées pour 45 polymorphes seulement, en
 campagne 1). C'est le filtre le moins cher du pipeline.
 
-## 7. Relaxation et validation
+## 8. Relaxation et validation
 
 Réutilisées sans modification depuis le projet jumeau :
 
@@ -209,7 +298,7 @@ Réutilisées sans modification depuis le projet jumeau :
   azotes tricoordonnés qui s'aplanissent. Ici le risque est concentré sur les
   motifs `sp2` et `oterm`, par construction.
 
-## 8. L'objectif : pourquoi E_f brut ne suffit pas
+## 9. L'objectif : pourquoi E_f brut ne suffit pas
 
 L'enthalpie de formation, au même niveau de théorie que la campagne
 (`funnel_table.mu_elements`) :
@@ -243,14 +332,18 @@ composition**. Ce qui ne l'est pas : le classement absolu entre compositions
 différentes. C'est le DFT qui arbitre, et les entrées sont préparées par
 `cno_csp.dft`.
 
-## 9. Stratégie de recherche sur (x, y, z)
+## 10. Stratégie de recherche sur (x, y, z)
 
 Trois étages, du certain au heuristique.
 
 **Étage 1 — exhaustif.** Supermailles 8, 16, 32 sites, `k ≤ 4`, tous les
-motifs. Quelques centaines de structures, toutes relaxées. Produit la première
-carte E_f / ΔE_hull sur le simplexe de composition, et elle est *complète* :
-aucune structure de cette taille n'échappe à l'énumération.
+motifs. Produit la première carte E_f / ΔE_hull sur le simplexe de
+composition, et elle est *complète* : aucune structure de cette taille
+n'échappe à l'énumération. Le dimensionnement est connu d'avance :
+`carte_composition.py` donne 52 compositions et 37 ternaires pour la seule
+décoration canonique, et `gen_templates.py` donne le nombre de structures
+distinctes après réduction primitive — c'est lui, et non le nombre d'ensembles
+de lacunes, qui fixe le coût en relaxations.
 
 **Étage 2 — ciblé par composition.** Les compositions qui se révèlent proches
 de l'enveloppe à l'étage 1 déterminent, par la recette du §4, les topologies
@@ -272,7 +365,7 @@ L'étage 1 est à écrire et à lancer ; les étages 2 et 3 ne se conçoivent
 correctement qu'avec la carte de l'étage 1 sous les yeux, et leurs paramètres
 (quelles compositions, quels amas) en dépendent.
 
-## 10. Ce que la méthode garantit, et ce qu'elle ne garantit pas
+## 11. Ce que la méthode garantit, et ce qu'elle ne garantit pas
 
 Garanti :
 
@@ -299,7 +392,10 @@ Non garanti, et à vérifier calcul par calcul :
 - la **stabilité thermodynamique** : voir §8, l'attente raisonnable est
   +0.2 à +0.8 eV/atome au-dessus de l'enveloppe moléculaire.
 
-## 11. Première validation : la méthode retrouve le meilleur candidat du jumeau
+## 12. Première validation : la méthode retrouve le meilleur candidat du jumeau
+
+*(Témoin de validation, pas candidat : c'est un binaire, donc exclu des
+campagnes par le cahier des charges — obtenu ici avec `--binaires`.)*
 
 La plus petite instance possible — maille conventionnelle 1×1×1 (8 sites),
 **une** lacune, décoration canonique — donne :
@@ -313,13 +409,16 @@ premier terme d'une famille, obtenu sans base de données. La conception est
 cohérente avec un résultat déjà établi par une voie indépendante — et elle
 place ce résultat dans une série, ce que la voie « template MP » ne faisait pas.
 
-## 12. Arborescence et intégration
+## 13. Arborescence et intégration
 
-    dia_cno/lattice.py     réseau diamant : sites, liaisons, permutations de symétrie
-    dia_cno/vacancies.py   énumération des lacunes, décorations, règle de Lewis
+    dia_cno/lattice.py     réseau diamant : demi-liaisons périodiques, symétrie,
+                           verifie_reseau() (audit des bords avant énumération)
+    dia_cno/vacancies.py   énumération des lacunes, décorations, règle de Lewis,
+                           diagnostic_images() (interaction avec les images)
     dia_cno/templates.py   construction, remise à l'échelle, primitive, signature
-    scripts/gen_templates.py  CLI : lacunes -> cif/ + templates_manifest.json
-    scripts/relax_lot.py      CLI : relaxation MACE + validation + E_f + ΔE_dec
+    scripts/gen_templates.py     CLI : lacunes -> cif/ + templates_manifest.json
+    scripts/relax_lot.py         CLI : relaxation MACE + validation + E_f + ΔE_dec
+    scripts/carte_composition.py CLI : domaine (x, y, z) atteignable, sans calcul d'énergie
 
 Le manifeste est écrit **au format du projet jumeau**
 (`templates_manifest.json` : `source_id`, `decoration`, `child_formula`,

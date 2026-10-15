@@ -36,7 +36,8 @@ import numpy as np
 from ase import Atoms
 from ase.data import atomic_numbers, covalent_radii
 
-from .lattice import CUTOFF_LIAISON, liaisons
+from .lattice import (CUTOFF_LIAISON, demi_liaisons, liaisons,
+                      liaisons_uniques)
 from .vacancies import Decoration
 
 
@@ -45,7 +46,10 @@ def facteur_echelle(parent: Atoms, dec: Decoration) -> float:
     vac = set(dec.vac)
     syms = parent.get_chemical_symbols()
     ratios = []
-    for a, b in liaisons(parent, CUTOFF_LIAISON):
+    # liaisons_uniques et non un ensemble de paires : une paire liée par
+    # plusieurs images compte autant de fois qu'elle a d'images, sinon la
+    # moyenne est faussée par les bords périodiques.
+    for a, b, _S in liaisons_uniques(demi_liaisons(parent, CUTOFF_LIAISON)):
         if a in vac or b in vac:
             continue
         r_cible = (covalent_radii[atomic_numbers[dec.mapping[a]]]
@@ -114,6 +118,10 @@ class Template:
     classes: dict[int, str]
     dimensionality: int | None = None
     flags: tuple[str, ...] = ()
+    n_lacunes: int = 0
+    b_lacunes: int = 0                 # liaisons lacune-lacune
+    recouvrement_images: int = 0       # voisins communs max entre deux lacunes
+    images_en_interaction: bool = False
 
     def manifest_entry(self) -> dict:
         """Entrée compatible templates_manifest.json de C_N_O_under_pressure."""
@@ -126,7 +134,10 @@ class Template:
                 "composition": {"C": self.composition[0], "N": self.composition[1],
                                 "O": self.composition[2]},
                 "v_per_atom": round(self.v_per_atom, 4),
-                "dimensionality": self.dimensionality}
+                "dimensionality": self.dimensionality,
+                "n_lacunes": self.n_lacunes, "b_lacunes": self.b_lacunes,
+                "recouvrement_images": self.recouvrement_images,
+                "images_en_interaction": self.images_en_interaction}
 
 
 def homonucleaire(atoms: Atoms) -> tuple[str, ...]:

@@ -121,9 +121,11 @@ def main() -> None:
     racine = jumeau()
     sys.path.insert(0, str(racine / "scripts"))
     from cno_csp.config import GeometryThresholds
+    from cno_csp.geometry import dimensionality
     from cno_csp.relax import relax
     from cno_csp.validator import validate
     from funnel_table import e_decomposition
+    from ase.io import write as ase_write
 
     th = GeometryThresholds(allow_planar_n=True, allow_bent_n=True,
                             allow_terminal_o=True)
@@ -145,6 +147,12 @@ def main() -> None:
 
     cache = Path(args.cache)
     refs: dict[bool, dict] = {}
+    # Les structures RELAXÉES sont enregistrées : sans elles on ne peut ni
+    # relire la dimensionnalité après relaxation (une charpente peut se
+    # fragmenter, c'est la doctrine du jumeau), ni enchaîner les phonons, ni
+    # préparer le DFT. Un lot sans ses structures n'est pas exploitable.
+    dossier_relax = out.parent / f"{out.stem}_relax"
+    dossier_relax.mkdir(parents=True, exist_ok=True)
 
     resultats = []
     for e in man:
@@ -163,6 +171,23 @@ def main() -> None:
         # e_decomposition attend l'énergie TOTALE d'une molécule de CO2.
         dec = e_decomposition(n_at, r.energy, mu, e_co2)
         rep = validate(r.atoms, th)
+        dim_apres = dimensionality(r.atoms)
+        v_at = r.volume / len(r.atoms)
+        v_tpl = e.get("v_per_atom") or v_at
+        # Deux garde-fous sur la physique du résultat, et non sur sa validité
+        # géométrique. Une maille qui double de volume ou qui perd une
+        # dimension s'est fragmentée : elle a libéré des molécules, et son
+        # énergie n'est plus celle d'une charpente. Une énergie absurde est
+        # une divergence numérique de l'optimiseur.
+        anomalies = []
+        if v_at > 2.0 * v_tpl:
+            anomalies.append(f"volume x{v_at/v_tpl:.1f}")
+        if dim_apres < (e.get("dimensionality") or 3):
+            anomalies.append(f"dim {e.get('dimensionality')}D->{dim_apres}D")
+        if abs(ef) > 10.0:
+            anomalies.append(f"E_f absurde ({ef:.3g})")
+        nom_relax = f"{e['source_id']}_{e['decoration']}_{r.atoms.get_chemical_formula()}.cif"
+        ase_write(dossier_relax / nom_relax, r.atoms)
         res = {
             "source_id": e["source_id"], "decoration": e["decoration"],
             "formula": r.atoms.get_chemical_formula(),
@@ -173,6 +198,8 @@ def main() -> None:
             "e_per_atom": r.energy / len(r.atoms),
             "v_per_atom": r.volume / len(r.atoms),
             "v_per_atom_template": e.get("v_per_atom"),
+            "dimensionality_apres": dim_apres,
+            "anomalies": anomalies,
             "e_formation": ef, "e_decomposition": dec,
             "valide": bool(rep.ok),
             "raison": "" if rep.ok else "; ".join(
@@ -189,7 +216,8 @@ def main() -> None:
               f"{len(r.atoms):3d}at {'D3' if disp else '  '} "
               f"V/at={res['v_per_atom']:5.2f} E_f={ef:+.3f} "
               f"dec={dec:+.3f} {'OK' if rep.ok else 'KO'} "
-              f"{'conv' if r.converged else 'NC'}", flush=True)
+              f"{'conv' if r.converged else 'NC'}"
+              + (f"  ANOMALIE: {', '.join(anomalies)}" if anomalies else ""), flush=True)
 
     print(f"\n{len(resultats)} structures -> {out}")
 

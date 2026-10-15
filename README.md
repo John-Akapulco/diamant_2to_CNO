@@ -14,6 +14,15 @@ déjà 109.47°, donc un site à 3 voisins est pyramidal (NH3 : 320° de somme
 d'angles, ici 328°) et un site à 2 voisins est coudé. Aucune pré-distorsion,
 seulement une remise à l'échelle isotrope de la maille.
 
+**Le choix des références énergétiques est traité dans
+[`REFERENCES.md`](REFERENCES.md)** : pourquoi N2 et O2 sont les deux pires cas
+possibles, pourquoi un composé cristallin **calibre** l'erreur sans pouvoir
+remplacer l'élément, et la mesure sur six cristaux de référence. Résultat le
+plus utile : l'erreur dominante pour nos charpentes n'est ni l'azote ni
+l'oxygène mais **le carbone** — MACE donne diamant−graphite à +0.138 eV/atome
+contre +0.0196 expérimental, et nos structures sont à 85 % de carbone. D'où la
+recommandation de prendre **le diamant** comme référence carbone.
+
 **Tous les paramètres de génération sont listés dans
 [`PARAMETRES.md`](PARAMETRES.md)** — réseau parent, lacunes, décoration, maille
 produite, relaxation, seuils de validation et références énergétiques, avec

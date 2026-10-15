@@ -35,18 +35,40 @@ def main() -> None:
                 continue            # qui réapparaît dans un shard
             vus.add(cle)
             res.append(r)
+    # TRI DES ANOMALIES AVANT LE CLASSEMENT. Une structure qui s'est
+    # fragmentée en relaxant a libéré des molécules : son énergie n'est plus
+    # celle d'une charpente, et son DeltaE_dec devient NÉGATIF simplement
+    # parce qu'elle s'est déjà décomposée. La classer avec les autres ferait
+    # remonter en tête les échecs les plus spectaculaires. Mesuré sur le lot 2 :
+    # une dizaine de compositions sur-oxygénées, à 12-37 A3/atome.
+    retenu, ecarte = [], []
+    for r in res:
+        raisons = list(r.get("anomalies") or [])
+        if not r["converged"]:
+            raisons.append("non convergée")
+        if not r["valide"]:
+            raisons.append("validateur")
+        (ecarte if raisons else retenu).append((r, raisons))
+    res = [r for r, _ in retenu]
     res.sort(key=lambda r: r["e_decomposition"])
 
+    n_tot = len(retenu) + len(ecarte)
     lignes = []
-    lignes.append(f"# Lot {src.name} : {len(res)} structures\n")
-    ok = sum(1 for r in res if r["valide"])
-    conv = sum(1 for r in res if r["converged"])
+    lignes.append(f"# Lot {src.name} : {n_tot} structures calculées, "
+                  f"**{len(res)} retenues**\n")
     dim = Counter(r["dimensionality"] for r in res)
     img = sum(1 for r in res if r.get("images_en_interaction"))
-    lignes.append(f"- convergées à f_max : **{conv}/{len(res)}**")
-    lignes.append(f"- validées (tous les sites dans un environnement visé) : **{ok}/{len(res)}**")
-    lignes.append(f"- dimensionnalité des templates : {dict(sorted(dim.items(), reverse=True))}")
+    lignes.append(f"- écartées : **{len(ecarte)}/{n_tot}** "
+                  f"(non convergée, validateur, ou anomalie physique)")
+    motifs = Counter(m.split(" ")[0].split("(")[0] for _, rs in ecarte for m in rs)
+    lignes.append(f"- motifs d'écart : {dict(motifs.most_common())}")
+    lignes.append(f"- dimensionnalité des templates retenus : {dict(sorted(dim.items(), reverse=True))}")
     lignes.append(f"- sans interaction d'images (maille assez grande) : {len(res)-img}/{len(res)}\n")
+    lignes.append("Une structure fragmentée pendant la relaxation a libéré des "
+                  "molécules : son ΔE_dec devient négatif parce qu'elle s'est "
+                  "**déjà décomposée**. Un ΔE_dec négatif est donc un signal "
+                  "d'alarme, pas un succès, et ces structures sont écartées "
+                  "plutôt que classées.\n")
     lignes.append("Trié par ΔE_dec, distance au-dessus de l'enveloppe "
                   "{graphite, N2, CO2, O2}. E_f est donné pour mémoire : le "
                   "minimiser seul dégénère vers le diamant.\n")

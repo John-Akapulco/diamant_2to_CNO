@@ -422,6 +422,14 @@ Deux réserves que les bancs rendent visibles :
 suffisent ; étages 2 et 3 (milliers de configurations à 61+ atomes) sur le GPU
 de vm1, où l'écart est de deux ordres de grandeur par appel.
 
+**Topologie d'accès, mesurée.** vm1 ne se joint pas directement : son port 22
+est filtré depuis l'extérieur du laboratoire (`195.220.223.24`), alors que
+Yargla est joignable sans interaction. Et la clé acceptée par vm1 est sur
+Yargla, pas sur le Mac — les identités par défaut de Yargla sont d'ailleurs
+refusées, la clé doit être passée par `-i`. `stage.sh vm1` relaie donc par
+Yargla (`hpc/relais_vm1.sh`, exécuté sur Yargla) au lieu d'un ProxyJump, qui
+ferait porter l'authentification au Mac.
+
 **Comparabilité entre machines, vérifiée et non supposée.** Deux checkpoints
 MACE cohabitent dans `~/.cache/mace` sur Yargla et ce ne sont pas le même
 modèle : 13 meV d'écart sur l'énergie du diamant, aucune erreur levée, et des
@@ -560,6 +568,7 @@ place ce résultat dans une série, ce que la voie « template MP » ne faisait 
     scripts/dimensionnalite.py   CLI : dimensionnalité en fonction du taux de lacunes
     hpc/e_diamant.py             signature du modèle MACE (énergie du diamant, 6 décimales)
     hpc/stage.sh                 transfert + vérifications distantes (yargla, vm1)
+    hpc/relais_vm1.sh            relais Yargla -> vm1 (exécuté sur Yargla)
     hpc/yargla_lot.slurm         40 tâches CPU, shards entrelacés
     hpc/vm1_lot.slurm            8 processus sur un H100, checkpoint résolu au lancement
 

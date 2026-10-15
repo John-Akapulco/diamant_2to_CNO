@@ -91,7 +91,17 @@ entre 16 processus vaut ~150 cœurs Yargla. Deux réserves : D3 coûte cher sur
 GPU (×4.7 à 352 atomes, alors que le pool 3D s'en passe), et la concurrence
 sature vers 8 processus, d'où `N_SHARDS=8`.
 
-    bash hpc/stage.sh vm1 templates_dia_t1      # ou : yargla
+    bash hpc/stage.sh yargla templates_dia_t1
+    VM1_KEY=<clé sur yargla> bash hpc/stage.sh vm1 templates_dia_t1
+
+**vm1 se joint par relais, pas directement.** Mesuré : vm1 résout
+(195.220.223.24) mais son port 22 est injoignable depuis l'extérieur du
+laboratoire, alors que Yargla l'est. ProxyJump ne conviendrait pas — avec lui
+l'authentification auprès de vm1 se ferait depuis le Mac, avec une clé du Mac,
+alors que la clé acceptée par vm1 est sur Yargla. C'est donc Yargla qui
+s'authentifie (`hpc/relais_vm1.sh`, exécuté là-bas), et `VM1_KEY` est le chemin
+de la clé **sur Yargla** : les identités par défaut de Yargla sont refusées par
+vm1.
 
 `stage.sh` transfère code et templates, puis vérifie **à distance**
 l'environnement, la présence du projet jumeau et — surtout — que le checkpoint

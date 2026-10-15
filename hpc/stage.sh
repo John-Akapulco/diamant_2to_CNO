@@ -58,6 +58,28 @@ E_LOCAL=$("$PYTHON" hpc/e_diamant.py 2>/dev/null)
 echo "   $E_LOCAL eV"
 
 NB=$(ls "$TEMPLATES/cif" | wc -l | tr -d ' ')
+
+# vm1 : RELAIS PAR YARGLA, et non transfert direct. Mesuré : vm1 résout
+# (195.220.223.24) mais son port 22 est injoignable depuis l'extérieur du
+# laboratoire, alors que Yargla l'est. ProxyJump ne conviendrait pas : avec lui
+# l'authentification auprès de vm1 se ferait depuis le Mac, avec une clé du
+# Mac, alors que la clé acceptée par vm1 est sur Yargla. C'est donc Yargla qui
+# s'authentifie, et VM1_KEY est le chemin de la clé SUR YARGLA -- mesuré
+# aussi : les identités par défaut de Yargla sont refusées par vm1.
+if [ "$MACHINE" = "vm1" ]; then
+  : "${VM1_KEY:?définir VM1_KEY=<chemin de la clé privée SUR YARGLA>}"
+  VIA=${VIA:-yargla}
+  echo "== relais par $VIA : $NB templates + code vers vm1"
+  ssh "$VIA" "mkdir -p ~/relais_dia"
+  tar czf - dia_cno scripts hpc README.md CONCEPTION.md \
+    | ssh "$VIA" "cat > ~/relais_dia/code.tgz"
+  tar czf - -C "$TEMPLATES" cif templates_manifest.json \
+    | ssh "$VIA" "cat > ~/relais_dia/templates.tgz"
+  scp -q hpc/relais_vm1.sh "$VIA:relais_dia/relais_vm1.sh"
+  ssh "$VIA" "bash ~/relais_dia/relais_vm1.sh '$VM1_KEY' '$TEMPLATES' '$E_LOCAL'"
+  exit 0
+fi
+
 echo "== transfert : $NB templates + code vers $MACHINE:$REMOTE_DIR"
 ssh "$MACHINE" "mkdir -p ~/$REMOTE_DIR/{code,templates,runs,logs,cache}"
 tar czf - dia_cno scripts hpc README.md CONCEPTION.md \

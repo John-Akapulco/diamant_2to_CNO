@@ -14,6 +14,12 @@ déjà 109.47°, donc un site à 3 voisins est pyramidal (NH3 : 320° de somme
 d'angles, ici 328°) et un site à 2 voisins est coudé. Aucune pré-distorsion,
 seulement une remise à l'échelle isotrope de la maille.
 
+**Tous les paramètres de génération sont listés dans
+[`PARAMETRES.md`](PARAMETRES.md)** — réseau parent, lacunes, décoration, maille
+produite, relaxation, seuils de validation et références énergétiques, avec
+pour chacun où il se règle (option, variable d'environnement ou constante de
+code) et la valeur de la campagne en cours.
+
 **La conception complète est dans [`CONCEPTION.md`](CONCEPTION.md)** : pourquoi
 la coordinence détermine l'élément, pourquoi la règle de Lewis se réduit à un
 couplage parfait, pourquoi la décoration canonique (`z=4→C, 3→N, 2→O`) est

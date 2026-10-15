@@ -99,7 +99,7 @@ python -c 'import mace, torch_dftd, ase, phonopy; print(\"   environnement ok\")
 echo '   projet jumeau présent'
 if [ -n '$REMOTE_MODEL' ]; then
   [ -f '$REMOTE_MODEL' ] || { echo '   checkpoint MACE ABSENT: $REMOTE_MODEL'; exit 1; }
-  echo \"   E(diamant) distante = \$(MACE_MODEL='$REMOTE_MODEL' python hpc/e_diamant.py) eV\"
+  echo \"   E(diamant) distante = \$(MACE_MODEL='$REMOTE_MODEL' python hpc/e_diamant.py 2>/dev/null) eV\"
 else
   echo '   checkpoint : resolu au lancement du job par hpc/e_diamant.py'
   ls \$HOME/.cache/mace/ 2>/dev/null | sed 's|^|     candidat: |' || echo '     cache mace absent'

@@ -35,7 +35,12 @@ export KMP_DUPLICATE_LIB_OK=TRUE      # conflit OpenMP conda/pip
 # scripts/funnel_table.py). Il doit donc être déployé sur la machine, et
 # dia_cno.jumeau() le localise par cette variable.
 export CNO_UNDER_PRESSURE=${CNO_UNDER_PRESSURE:-$HOME/C_N_O_under_Pressure/code}
-export PYTHONPATH="$PWD/code:${PYTHONPATH:-}"
+# Le jumeau DOIT être dans PYTHONPATH, pas seulement dans CNO_UNDER_PRESSURE :
+# relax_lot.py passe par dia_cno.jumeau() qui l'insère lui-même, mais tout
+# autre appel direct à cno_csp (la vérification du checkpoint ci-dessous, par
+# exemple) échouerait à l'import -- et un ImportError ici tue le job APRÈS la
+# file d'attente, c'est-à-dire au pire moment.
+export PYTHONPATH="$PWD/code:$CNO_UNDER_PRESSURE:${PYTHONPATH:-}"
 [ -d "$CNO_UNDER_PRESSURE/cno_csp" ] || {
     echo "projet jumeau absent : $CNO_UNDER_PRESSURE"
     echo "déployer C_N_O_under_pressure d'abord (hpc/stage.sh de ce projet-là)"
@@ -57,14 +62,15 @@ FMAX=${FMAX:-1e-3}
 
 echo "début $(date) | nœud $(hostname) | $N_SHARDS shards | templates $TEMPLATES"
 python -c "import mace, torch_dftd, ase, phonopy; print('environnement ok')" || exit 1
-python - <<'PY' || exit 1
-from ase.build import bulk
-from cno_csp.relax import get_calculator
-a = bulk("C", "diamond", a=3.567); a.calc = get_calculator("mace")
-e = a.get_potential_energy()
-print("E(diamant, 2 at) = %.6f eV" % e)
-assert abs(e + 18.149009) < 1e-5, "checkpoint MACE différent de celui du Mac"
-PY
+
+# Signature du modèle, par le même fichier que stage.sh et que vm1_lot.slurm :
+# une seule implémentation, donc aucune divergence possible entre la
+# vérification du transfert et celle du job.
+E_DIA=$(python code/hpc/e_diamant.py 2>/dev/null)
+echo "E(diamant, 2 at) = ${E_DIA:-ÉCHEC} eV"
+[ "$E_DIA" = "-18.149009" ] || {
+    echo "checkpoint MACE différent de celui du Mac (attendu -18.149009)"
+    exit 1; }
 
 # Les références (graphite, diamant, N2, O2, CO2, N2O) une seule fois AVANT
 # les shards : elles sont mises en cache sur disque, et deux shards qui les

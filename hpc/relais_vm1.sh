@@ -57,7 +57,7 @@ python -c 'import mace, torch_dftd, ase, phonopy; print(\"   environnement ok\")
 python -c 'import torch; print(\"   cuda:\", torch.cuda.is_available(), torch.cuda.device_count(), \"GPU\")'
 [ -d \"\$CNO_UNDER_PRESSURE/cno_csp\" ] || { echo \"   projet jumeau ABSENT: \$CNO_UNDER_PRESSURE\"; exit 1; }
 echo '   projet jumeau présent'
-echo \"   E(diamant) sur vm1 = \$(python hpc/e_diamant.py) eV\"
+echo \"   E(diamant) sur vm1 = \$(python hpc/e_diamant.py 2>/dev/null) eV\"
 echo \"   templates: \$(ls \$HOME/$DISTANT/templates/$LOT/cif | wc -l)\"
 "
 

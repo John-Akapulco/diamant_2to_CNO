@@ -48,7 +48,7 @@ export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export KMP_DUPLICATE_LIB_OK=TRUE
 
 export CNO_UNDER_PRESSURE=${CNO_UNDER_PRESSURE:-$HOME/C_N_O_under_Pressure/code}
-export PYTHONPATH="$PWD/code:${PYTHONPATH:-}"
+export PYTHONPATH="$PWD/code:$CNO_UNDER_PRESSURE:${PYTHONPATH:-}"
 [ -d "$CNO_UNDER_PRESSURE/cno_csp" ] || {
     echo "projet jumeau absent : $CNO_UNDER_PRESSURE"; exit 1; }
 

@@ -75,6 +75,15 @@ en direct, utiliser l'interpréteur directement.
 
 ## Où tournent les calculs
 
+**Les règles d'exploitation des machines sont dans [`hpc/README.md`](hpc/README.md)**,
+et il y en a deux qui ne se négocient pas : *aucun calcul sur le nœud de
+connexion* — on soumet par SLURM, ça s'exécute sur les nœuds de production — et
+*Internet n'existe que sur le nœud de connexion*, donc tout ce dont un job a
+besoin (checkpoint MACE en tête) doit être sur disque avant la soumission.
+`scripts/relax_lot.py` refuse de démarrer sur une machine qui a `sbatch` sans
+`SLURM_JOB_ID`.
+
+
 En local sur le Mac pour la mise au point, sur **Yargla** (CPU, 40 cœurs) ou
 sur le **H100 de vm1** pour les campagnes. Le choix se fait sur les bancs du
 jumeau — coût d'un appel énergie + forces MACE float64 sans D3 :

@@ -8,6 +8,11 @@ Relaxe un lot de templates au MACE, valide, et calcule les enthalpies de formati
     # un shard parmi 20 (Yargla : parallélisation PAR PROCESSUS, cf. hpc/)
     python scripts/relax_lot.py templates_dia --out runs/lot1.json --shard 3/20
 
+Sur un calculateur ce script ne se lance JAMAIS à la main : il se lance par
+sbatch, depuis hpc/yargla_lot.slurm ou hpc/vm1_lot.slurm. Le nœud de connexion
+sert à transférer, soumettre et consulter, pas à calculer, et garde_noeud_de_connexion()
+le fait respecter. Règles complètes dans hpc/README.md.
+
 Relaxation : positions + volume + forme de maille (FrechetCellFilter), à 0 GPa,
 fmax = 1e-3 eV/Å -- le seuil serré du projet jumeau, nécessaire parce qu'on
 tranche « N pyramidal vs N plan » sur quelques degrés de somme d'angles.
@@ -32,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections import Counter
 from pathlib import Path
@@ -41,6 +47,34 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ase.io import read as ase_read
 
 from dia_cno import jumeau
+
+
+def garde_noeud_de_connexion(force: bool) -> None:
+    """
+    Refuse de calculer sur un nœud de connexion.
+
+    Le nœud de connexion d'un calculateur sert à transférer, soumettre et
+    consulter ; il est partagé par tous les utilisateurs et n'a ni les cœurs ni
+    l'isolation d'un nœud de production. Une relaxation MACE y dégrade la
+    machine pour tout le monde -- et les six relaxations de référence
+    (graphite, diamant, N2, O2, CO2, N2O) sont des calculs à part entière.
+
+    Critère : la machine a `sbatch` mais l'environnement n'a pas de
+    SLURM_JOB_ID. C'est exactement « je suis sur un calculateur, hors job ».
+    Sur le Mac il n'y a pas de sbatch, donc rien ne change.
+    """
+    import shutil
+
+    if force or os.environ.get("SLURM_JOB_ID") or not shutil.which("sbatch"):
+        return
+    print("REFUS : ce script calcule, et cette machine a SLURM sans job en cours.\n"
+          "        Un nœud de connexion sert à transférer, soumettre et consulter.\n"
+          "        Soumettre plutôt :\n"
+          "          sbatch --export=ALL,TEMPLATES=<lot>,N_SHARDS=20,OUT=runs/<nom>.json \\\n"
+          "                 code/hpc/yargla_lot.slurm\n"
+          "        Voir hpc/README.md. En dernier recours : --hors-slurm.",
+          file=sys.stderr)
+    raise SystemExit(2)
 
 
 def charge_mu(disp: bool, cache: Path) -> dict:
@@ -77,7 +111,12 @@ def main() -> None:
                     help="ne traiter qu'un sous-ensemble (entrelacé, pour que "
                          "chaque shard reçoive un mélange de petites et grandes mailles)")
     ap.add_argument("--cache", default="cache")
+    ap.add_argument("--hors-slurm", action="store_true",
+                    help="forcer l'exécution sur un nœud de connexion (diagnostic "
+                         "très court seulement, cf. hpc/README.md)")
     args = ap.parse_args()
+
+    garde_noeud_de_connexion(args.hors_slurm)
 
     racine = jumeau()
     sys.path.insert(0, str(racine / "scripts"))

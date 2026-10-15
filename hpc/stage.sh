@@ -28,6 +28,14 @@ cd "$RACINE"
 
 [ -d "$TEMPLATES/cif" ] || { echo "templates introuvables: $TEMPLATES/cif"; exit 1; }
 
+# Interpréteur LOCAL. Surtout pas "python3" nu : sur le Mac c'est
+# /usr/bin/python3, qui n'a ni ase ni mace, et la référence d'énergie du
+# diamant sortirait vide -- or c'est elle qui garantit que les deux machines
+# calculent le même modèle. On prend l'environnement mlip, et on échoue
+# bruyamment s'il manque.
+PYTHON=${PYTHON:-$HOME/miniconda3/envs/mlip/bin/python}
+[ -x "$PYTHON" ] || { echo "interpréteur introuvable: $PYTHON (définir PYTHON=...)"; exit 1; }
+
 case "$MACHINE" in
   yargla) REMOTE_ENV="export PATH=/home/gilles/dynstab_project/miniforge3/envs/hp_mlip_mace/bin:\$PATH"
           REMOTE_MODEL=${REMOTE_MODEL:-/home/gilles/.cache/mace/5yyxdm76}
@@ -42,16 +50,11 @@ case "$MACHINE" in
 esac
 
 echo "== référence locale : énergie du diamant"
-E_LOCAL=$(CNO_UNDER_PRESSURE=${CNO_UNDER_PRESSURE:-$HOME/C_N_O_under_pressure} \
-  python3 - <<'PY'
-import sys; sys.path.insert(0, ".")
-from dia_cno import jumeau; jumeau()
-from ase.build import bulk
-from cno_csp.relax import get_calculator
-a = bulk("C", "diamond", a=3.567); a.calc = get_calculator("mace")
-print("%.6f" % a.get_potential_energy())
-PY
-)
+export CNO_UNDER_PRESSURE=${CNO_UNDER_PRESSURE:-$HOME/C_N_O_under_pressure}
+[ -d "$CNO_UNDER_PRESSURE/cno_csp" ] || {
+    echo "projet jumeau introuvable en local: $CNO_UNDER_PRESSURE"; exit 1; }
+E_LOCAL=$("$PYTHON" hpc/e_diamant.py 2>/dev/null)
+[ -n "$E_LOCAL" ] || { echo "la référence locale a échoué ($PYTHON hpc/e_diamant.py)"; exit 1; }
 echo "   $E_LOCAL eV"
 
 NB=$(ls "$TEMPLATES/cif" | wc -l | tr -d ' ')

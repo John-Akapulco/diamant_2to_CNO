@@ -30,6 +30,14 @@ d'image, jamais en ensembles de voisins : sous périodicité deux sites peuvent
 cesse d'interagir avec ses propres images — en dessous, une structure est un
 réseau ordonné de lacunes, ce que chaque template déclare dans son manifeste.
 
+**Dimensionnalité, mesurée et non espérée.** C'est un générateur de
+**charpentes 3D**, qui bascule vers le **2D** au-delà de ~30 % de lacunes. Le
+1D est marginal (37 % de lacunes, motifs π seulement) et le **0D est fermé**
+dès qu'on exige du carbone : le carbone demande z ≥ 3, donc une position
+*intérieure*, alors qu'un petit diamantoïde n'a que de la surface — le cycle à
+6 donne O6, la cage adamantane N4O6, sans un seul carbone. Détail au §6 de
+`CONCEPTION.md`.
+
 Trois résultats qui orientent tout le reste :
 
 - **la décoration canonique est de déficit nul partout**, donc valide au sens

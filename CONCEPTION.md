@@ -64,7 +64,7 @@ projet jumeau.
 même structure : `require_ternary` vaut `True` par défaut, et les binaires
 sont écartés à l'énumération, pas filtrés après. Cela comprend `C3N4` de la
 lacune isolée et les `CxOy` des paires de lacunes. Ils restent des **témoins
-de validation** de la méthode (§13), jamais des candidats. L'option
+de validation** de la méthode (§14), jamais des candidats. L'option
 `--binaires` existe pour reproduire la comparaison avec la campagne 1 du
 jumeau, qui ne l'exigeait pas.
 
@@ -225,7 +225,62 @@ d'interaction d'images, et ils font tous 61–62 atomes. Le partage retenu :
 - la comparaison dilué / concentré se fait **au sein de MACE**, où les deux
   régimes sont accessibles au même niveau de théorie.
 
-## 6. Énumération des lacunes, à symétrie près
+## 6. Dimensionnalité : ce que la méthode produit vraiment
+
+Le cahier des charges espérait « des composés 3D, 2D ou 1D voire 0D
+(moléculaires) ». Mesuré plutôt qu'espéré (`scripts/dimensionnalite.py`,
+maille 2×1×1, templates distincts après réduction primitive) :
+
+| k | % lacunes | ternaires, canonique | ternaires, tous motifs |
+|---|---|---|---|
+| 2 | 12.5 % | 3D:1 | 3D:1 |
+| 3 | 18.8 % | 3D:5 2D:3 | 3D:11 2D:6 |
+| 4 | 25.0 % | 3D:10 2D:7 | 3D:23 2D:22 |
+| 5 | 31.2 % | 3D:7 2D:12 | 3D:6 2D:38 |
+| 6 | 37.5 % | 3D:1 2D:7 | 3D:5 2D:41 **1D:2** |
+| 7 | 43.8 % | 2D:3 | 2D:24 |
+
+**C'est un générateur de charpentes 3D**, qui bascule vers le 2D au-delà de
+~30 % de lacunes. Le 1D n'apparaît qu'à 37 % et seulement avec les motifs π.
+Le **0D n'apparaît jamais** — et ce n'est pas un manque d'exploration, c'est
+structural.
+
+**Pourquoi le 0D est fermé dès qu'on exige du carbone.** Le carbone demande
+z ≥ 3 ; dans un fragment fini du réseau diamant, seuls les atomes *intérieurs*
+atteignent z ≥ 3, et les petits diamantoïdes n'ont pas d'intérieur : tous
+leurs atomes sont en surface. Les trois cas calculés :
+
+| cluster | atomes | coordinences | décoration canonique | Lewis |
+|---|---|---|---|---|
+| cycle à 6 (chaise) | 6 | 6×z=2 | **O6** | ok |
+| cage adamantane | 10 | 4×z=3, 6×z=2 | **N4O6** | ok |
+| boule de rayon 3 | 41 | 17×z=4, 12×z=2, 12×z=1 | 17 C, 12 O, 12 O terminal | **impossible** |
+
+Le cycle à 6 est un anneau d'oxygènes, la cage adamantane est **N4O6** — une
+molécule neutre à couches fermées réalisant exactement les environnements
+visés, mais **sans un seul carbone**. Et dès qu'on prend un cluster assez gros
+pour avoir des carbones intérieurs (boule de rayon 3 : 17 carbones
+tétraédriques), la surface est faite d'oxygènes terminaux dont le partenaire π
+obligatoire n'existe pas — leur unique voisin est un carbone z=4, de déficit
+nul. La règle de Lewis refuse le cluster.
+
+Autrement dit : dans cette famille, **le carbone est l'élément du volume et
+l'azote/l'oxygène sont les éléments de la surface**. Un objet de basse
+dimensionnalité est dominé par sa surface, donc pauvre en carbone, donc soit
+binaire (écarté), soit non décorable. Les motifs π (C sp² + O terminal)
+atténuent le problème — ils triplent le nombre de templates et font apparaître
+le 1D — mais ne l'annulent pas : testé jusqu'à 44 % de lacunes, aucun 0D
+ternaire.
+
+**Conséquence pour la suite.** Si des cristaux moléculaires C-N-O sont voulus,
+cette méthode n'est pas la bonne porte : il faudrait soit relâcher la
+contrainte ternaire (et alors N4O6 et les cages apparentées sont des sous-
+produits gratuits, intéressants pour eux-mêmes), soit terminer les surfaces
+autrement qu'avec les six environnements du cahier des charges — par de
+l'hydrogène, qui en est absent par construction. Pour les charpentes 3D
+denses, en revanche, la méthode est dans son domaine naturel.
+
+## 7. Énumération des lacunes, à symétrie près
 
 Le groupe d'espace du diamant est Fd-3m (227) : 192 opérations en maille
 conventionnelle, multipliées par les translations de la supermaille (1536
@@ -258,7 +313,7 @@ admissible n'existe*. Sans elle la génération explose dès 32 sites.
 C'est dérisoire : l'exhaustivité est atteignable jusqu'à k≈4–6, et le facteur
 limitant n'est pas l'énumération mais la relaxation.
 
-## 7. Symétrisation vers la maille primitive
+## 8. Symétrisation vers la maille primitive
 
 Chaque structure construite est passée à `spglib.standardize_cell(to_primitive=True)`.
 Deux rôles **distincts**, et c'est pour cela que l'étape est à cet endroit du
@@ -277,7 +332,7 @@ doublons **avant** toute relaxation, là où le projet jumeau ne les écartait
 qu'après (132 structures validées pour 45 polymorphes seulement, en
 campagne 1). C'est le filtre le moins cher du pipeline.
 
-## 8. Relaxation et validation
+## 9. Relaxation et validation
 
 Réutilisées sans modification depuis le projet jumeau :
 
@@ -298,7 +353,7 @@ Réutilisées sans modification depuis le projet jumeau :
   azotes tricoordonnés qui s'aplanissent. Ici le risque est concentré sur les
   motifs `sp2` et `oterm`, par construction.
 
-## 9. Sur quelle machine, et pourquoi
+## 10. Sur quelle machine, et pourquoi
 
 Trois machines, et le choix se fait sur des bancs **mesurés** par le projet
 jumeau (`scripts/bench/bench_calls.py`, `runs_random/bench_calls/`) : coût d'un
@@ -347,7 +402,7 @@ compare entre le Mac et la machine distante, `vm1_lot.slurm` s'en sert pour
 **−18.149009 eV** pour 2 atomes à a = 3.567 Å, identique à la valeur publiée
 par le jumeau pour `5yyxdm76` sur Yargla.
 
-## 10. L'objectif : pourquoi E_f brut ne suffit pas
+## 11. L'objectif : pourquoi E_f brut ne suffit pas
 
 L'enthalpie de formation, au même niveau de théorie que la campagne
 (`funnel_table.mu_elements`) :
@@ -381,7 +436,7 @@ composition**. Ce qui ne l'est pas : le classement absolu entre compositions
 différentes. C'est le DFT qui arbitre, et les entrées sont préparées par
 `cno_csp.dft`.
 
-## 11. Stratégie de recherche sur (x, y, z)
+## 12. Stratégie de recherche sur (x, y, z)
 
 Trois étages, du certain au heuristique.
 
@@ -414,7 +469,7 @@ L'étage 1 est à écrire et à lancer ; les étages 2 et 3 ne se conçoivent
 correctement qu'avec la carte de l'étage 1 sous les yeux, et leurs paramètres
 (quelles compositions, quels amas) en dépendent.
 
-## 12. Ce que la méthode garantit, et ce qu'elle ne garantit pas
+## 13. Ce que la méthode garantit, et ce qu'elle ne garantit pas
 
 Garanti :
 
@@ -436,12 +491,15 @@ Non garanti, et à vérifier calcul par calcul :
   voisines, qui se repoussent ;
 - que la structure reste **connexe comme prévue** : la dimensionnalité est
   relue après relaxation, une charpente peut se fragmenter ;
+- la méthode **ne produit pas de cristaux moléculaires** avec la contrainte
+  ternaire, et le 1D y est marginal : c'est démontré au §6, pas constaté par
+  manque d'exploration ;
 - que « dynamiquement stable » signifie autre chose qu'un **minimum local du
   potentiel MACE** — c'est tout ce que disent les phonons du jumeau ;
 - la **stabilité thermodynamique** : voir §8, l'attente raisonnable est
   +0.2 à +0.8 eV/atome au-dessus de l'enveloppe moléculaire.
 
-## 13. Première validation : la méthode retrouve le meilleur candidat du jumeau
+## 14. Première validation : la méthode retrouve le meilleur candidat du jumeau
 
 *(Témoin de validation, pas candidat : c'est un binaire, donc exclu des
 campagnes par le cahier des charges — obtenu ici avec `--binaires`.)*
@@ -458,7 +516,7 @@ premier terme d'une famille, obtenu sans base de données. La conception est
 cohérente avec un résultat déjà établi par une voie indépendante — et elle
 place ce résultat dans une série, ce que la voie « template MP » ne faisait pas.
 
-## 14. Arborescence et intégration
+## 15. Arborescence et intégration
 
     dia_cno/lattice.py     réseau diamant : demi-liaisons périodiques, symétrie,
                            verifie_reseau() (audit des bords avant énumération)
@@ -468,6 +526,7 @@ place ce résultat dans une série, ce que la voie « template MP » ne faisait 
     scripts/gen_templates.py     CLI : lacunes -> cif/ + templates_manifest.json
     scripts/relax_lot.py         CLI : relaxation MACE + validation + E_f + ΔE_dec
     scripts/carte_composition.py CLI : domaine (x, y, z) atteignable, sans calcul d'énergie
+    scripts/dimensionnalite.py   CLI : dimensionnalité en fonction du taux de lacunes
     hpc/e_diamant.py             signature du modèle MACE (énergie du diamant, 6 décimales)
     hpc/stage.sh                 transfert + vérifications distantes (yargla, vm1)
     hpc/yargla_lot.slurm         40 tâches CPU, shards entrelacés

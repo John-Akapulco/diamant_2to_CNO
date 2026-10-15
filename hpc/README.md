@@ -84,8 +84,31 @@ Yargla**, et `VM1_KEY` qui est le chemin de la clé **sur Yargla** :
 VM1_KEY=/home/gilles/.ssh/<nom_de_la_cle> bash hpc/stage.sh vm1 templates_dia_t1
 ```
 
-Les GPU de vm1 ne sont accessibles que par SLURM (`-p gpu --gres=gpu:1`) : la
-règle 1 y vaut donc aussi, et même plus strictement.
+Les GPU de vm1 ne sont accessibles **que par SLURM** : sur le nœud de tête,
+`nvidia-smi` répond « Insufficient Permissions » et `torch.cuda.is_available()`
+vaut `False`. La règle 1 y vaut donc aussi, et même plus strictement — une
+vérification CUDA sur le nœud de tête ne prouve rien.
+
+Configuration relevée sur vm1 (`sinfo`) : **une partition `gpu`, un nœud, deux
+H100** (`gpu:h100:2`), sans limite de temps, 32 cœurs. `vm1_lot.slurm` demande
+donc `--gres=gpu:2` et répartit les shards par `CUDA_VISIBLE_DEVICES=$((k %
+NGPU))` : sans cette répartition tous les processus se bousculeraient sur le
+GPU 0 et le second resterait inoccupé. `N_SHARDS` vaut 8 par GPU, le point de
+saturation mesuré. Pour n'en prendre qu'un et laisser l'autre libre :
+`--gres=gpu:1` et `NGPU=1`.
+
+**Le jumeau sur vm1.** `~/cno_run` est un déploiement plus ancien de
+`C_N_O_under_pressure` : il n'a pas `scripts/funnel_table.py`, dont
+`relax_lot.py` a besoin pour les potentiels chimiques. On **n'y touche pas** —
+il porte les `runs/` et les `templates_alex/` de l'utilisateur — et
+`stage.sh vm1` livre à la place la version du Mac dans
+`~/diamant_to_CNO/jumeau`. C'est aussi celle avec laquelle les résultats
+locaux ont été produits, donc la comparabilité est garantie par construction.
+
+**Attention aux téléchargements involontaires.** Une vérification lancée sans
+`MACE_MODEL` sur un nœud de tête fait télécharger 44 Mo par `mace_mp()` — c'est
+arrivé ici. Le nœud de tête a Internet (règle 2), donc rien n'échoue, mais ce
+n'est pas voulu : `relais_vm1.sh` épingle désormais un checkpoint du cache.
 
 ## Comparabilité entre machines
 

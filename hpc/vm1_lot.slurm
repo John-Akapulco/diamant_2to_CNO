@@ -18,10 +18,15 @@
 # entre 16 processus débite 35.8 appels/s sur 44 atomes avec D3, l'équivalent
 # de ~150 coeurs Yargla, soit presque quatre noeuds.
 #
-# N_SHARDS = 8 et non 16 : le débit sature déjà à 8 processus (33.5 appels/s
-# contre 35.8 à 16) alors que la latence par appel double (233 ms contre 445).
-# Huit processus donnent 94 % du débit avec deux fois moins d'attente par
-# structure.
+# N_SHARDS = 8 PAR GPU, et non 16 par GPU : le débit sature déjà à 8 processus
+# (33.5 appels/s contre 35.8 à 16) alors que la latence par appel double
+# (233 ms contre 445). Huit processus donnent 94 % du débit avec deux fois
+# moins d'attente par structure.
+#
+# Et vm1 a DEUX H100 sur le même nœud (sinfo : gpu:h100:2), d'où --gres=gpu:2
+# et la répartition des shards par CUDA_VISIBLE_DEVICES : sans elle, tous les
+# processus se bousculeraient sur le GPU 0 et le second resterait inoccupé.
+# Pour n'en prendre qu'un, soumettre avec --gres=gpu:1 et NGPU=1.
 #
 # ATTENTION, D3 SUR GPU. La dispersion coûte beaucoup plus cher en relatif sur
 # GPU que sur CPU (352 atomes : 89 ms sans D3, 417 ms avec). Le pool 3D, qui
@@ -29,7 +34,7 @@
 # gagnent moins.
 #SBATCH --job-name=dia_cno_gpu
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
@@ -47,7 +52,9 @@ export CNO_DEVICE=cuda           # lu par cno_csp.relax.get_calculator
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export KMP_DUPLICATE_LIB_OK=TRUE
 
-export CNO_UNDER_PRESSURE=${CNO_UNDER_PRESSURE:-$HOME/C_N_O_under_Pressure/code}
+# Le jumeau livré par hpc/relais_vm1.sh, et non ~/cno_run : ce dernier est un
+# déploiement plus ancien, sans scripts/funnel_table.py.
+export CNO_UNDER_PRESSURE=${CNO_UNDER_PRESSURE:-$PWD/jumeau}
 export PYTHONPATH="$PWD/code:$CNO_UNDER_PRESSURE:${PYTHONPATH:-}"
 [ -d "$CNO_UNDER_PRESSURE/cno_csp" ] || {
     echo "projet jumeau absent : $CNO_UNDER_PRESSURE"; exit 1; }
@@ -70,12 +77,15 @@ fi
 [ -n "${MACE_MODEL:-}" ] || { echo "aucun checkpoint ne donne -18.149009 eV"; exit 1; }
 echo "checkpoint retenu : $MACE_MODEL"
 
-N_SHARDS=${N_SHARDS:-8}
+# Nombre de GPU réellement alloués par Slurm, et non supposé.
+NGPU=${NGPU:-${SLURM_GPUS_ON_NODE:-$(nvidia-smi -L 2>/dev/null | wc -l)}}
+[ "${NGPU:-0}" -ge 1 ] 2>/dev/null || NGPU=1
+N_SHARDS=${N_SHARDS:-$((8 * NGPU))}
 TEMPLATES=${TEMPLATES:-templates/templates_dia_t1}
 OUT=${OUT:-runs/lot1_gpu.json}
 FMAX=${FMAX:-1e-3}
 
-echo "début $(date) | $(hostname) | $N_SHARDS processus sur 1 GPU | $TEMPLATES"
+echo "début $(date) | $(hostname) | $N_SHARDS processus sur $NGPU GPU | $TEMPLATES"
 python -c "import torch; print('cuda :', torch.cuda.is_available(), torch.cuda.get_device_name(0))" || exit 1
 
 # Références (graphite, diamant, N2, O2, CO2, N2O) une seule fois AVANT les
@@ -84,9 +94,10 @@ python code/scripts/relax_lot.py "$TEMPLATES" --out "$OUT" --limite 1 \
     --fmax "$FMAX" > logs/refs_gpu.log 2>&1 || { cat logs/refs_gpu.log; exit 1; }
 
 for k in $(seq 0 $((N_SHARDS - 1))); do
-    python code/scripts/relax_lot.py "$TEMPLATES" \
-           --out "$OUT" --fmax "$FMAX" --shard "$k/$N_SHARDS" \
-       > "logs/shard_gpu_$k.log" 2>&1 &
+    CUDA_VISIBLE_DEVICES=$((k % NGPU)) \
+      python code/scripts/relax_lot.py "$TEMPLATES" \
+             --out "$OUT" --fmax "$FMAX" --shard "$k/$N_SHARDS" \
+         > "logs/shard_gpu_$k.log" 2>&1 &
 done
 wait
 echo "fin $(date)"

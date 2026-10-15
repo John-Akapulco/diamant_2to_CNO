@@ -64,10 +64,13 @@ NB=$(ls "$TEMPLATES/cif" | wc -l | tr -d ' ')
 # laboratoire, alors que Yargla l'est. ProxyJump ne conviendrait pas : avec lui
 # l'authentification auprès de vm1 se ferait depuis le Mac, avec une clé du
 # Mac, alors que la clé acceptée par vm1 est sur Yargla. C'est donc Yargla qui
-# s'authentifie, et VM1_KEY est le chemin de la clé SUR YARGLA -- mesuré
-# aussi : les identités par défaut de Yargla sont refusées par vm1.
+# s'authentifie, par son alias ssh "vm1" -- vérifié : il fonctionne sans
+# interaction depuis Yargla (vm1-ic2mp, 32 coeurs). VM1_KEY ne sert qu'à
+# contourner cette configuration.
 if [ "$MACHINE" = "vm1" ]; then
-  : "${VM1_KEY:?définir VM1_KEY=<chemin de la clé privée SUR YARGLA>}"
+  # VM1_KEY est OPTIONNEL : la configuration ssh de Yargla porte déjà l'alias
+  # "vm1" avec son hôte, son utilisateur et son identité, et il fonctionne sans
+  # interaction. On ne passe un chemin de clé que pour la contourner.
   VIA=${VIA:-yargla}
   echo "== relais par $VIA : $NB templates + code vers vm1"
   ssh "$VIA" "mkdir -p ~/relais_dia"
@@ -75,8 +78,17 @@ if [ "$MACHINE" = "vm1" ]; then
     | ssh "$VIA" "cat > ~/relais_dia/code.tgz"
   tar czf - -C "$TEMPLATES" cif templates_manifest.json \
     | ssh "$VIA" "cat > ~/relais_dia/templates.tgz"
+  # Le jumeau est embarqué, et c'est délibéré. Son déploiement sur vm1
+  # (~/cno_run) est plus ancien : il n'a pas scripts/funnel_table.py, dont
+  # relax_lot.py a besoin pour les potentiels chimiques. On n'y touche pas --
+  # il porte les runs_alex/ et templates_alex/ de l'utilisateur -- et on livre
+  # à la place la version du Mac dans ~/diamant_to_CNO/jumeau, qui est aussi
+  # celle avec laquelle les résultats locaux ont été produits. Comparabilité
+  # garantie, rien d'écrasé.
+  tar czf - -C "$CNO_UNDER_PRESSURE" cno_csp scripts report.py \
+    | ssh "$VIA" "cat > ~/relais_dia/jumeau.tgz"
   scp -q hpc/relais_vm1.sh "$VIA:relais_dia/relais_vm1.sh"
-  ssh "$VIA" "bash ~/relais_dia/relais_vm1.sh '$VM1_KEY' '$TEMPLATES' '$E_LOCAL'"
+  ssh "$VIA" "bash ~/relais_dia/relais_vm1.sh '${VM1_KEY:--}' '$TEMPLATES' '$E_LOCAL'"
   exit 0
 fi
 

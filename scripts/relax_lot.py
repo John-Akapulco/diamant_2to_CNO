@@ -137,7 +137,7 @@ def main() -> None:
             "e_formation": ef, "e_decomposition": dec,
             "valide": bool(rep.ok),
             "raison": "" if rep.ok else "; ".join(
-                f"{v.symbol}{v.index}:{v.message}" for v in rep.violations[:4]),
+                f"{v.symbol}{v.index}:{v.kind}:{v.detail}" for v in rep.violations[:4]),
         }
         resultats.append(res)
         # Écriture incrémentale : un lot à fmax=1e-3 dure des heures, et un

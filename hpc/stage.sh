@@ -30,8 +30,15 @@ cd "$RACINE"
 
 case "$MACHINE" in
   yargla) REMOTE_ENV="export PATH=/home/gilles/dynstab_project/miniforge3/envs/hp_mlip_mace/bin:\$PATH"
-          REMOTE_MODEL=${REMOTE_MODEL:-/home/gilles/.cache/mace/5yyxdm76} ;;
-  *)      echo "machine non configurée: $MACHINE"; exit 1 ;;
+          REMOTE_MODEL=${REMOTE_MODEL:-/home/gilles/.cache/mace/5yyxdm76}
+          SUBMIT="sbatch --export=ALL,TEMPLATES=templates/$TEMPLATES,N_SHARDS=20,OUT=runs/lot1.json code/hpc/yargla_lot.slurm" ;;
+  vm1)    # Environnement GPU. Le checkpoint n'est PAS fixé ici : vm1_lot.slurm
+          # le résout en essayant les candidats de ~/.cache/mace et en gardant
+          # celui qui reproduit l'énergie du diamant du Mac (hpc/e_diamant.py).
+          REMOTE_ENV="export PATH=\${MACE_GPU_ENV:-\$HOME/miniforge3/envs/mace_gpu}/bin:\$PATH"
+          REMOTE_MODEL=""
+          SUBMIT="sbatch --export=ALL,TEMPLATES=templates/$TEMPLATES,N_SHARDS=8,OUT=runs/lot1_gpu.json code/hpc/vm1_lot.slurm" ;;
+  *)      echo "machine non configuree: $MACHINE (yargla, vm1)"; exit 1 ;;
 esac
 
 echo "== référence locale : énergie du diamant"
@@ -61,16 +68,17 @@ set -e
 export CNO_UNDER_PRESSURE=\$HOME/$JUMEAU_DIR
 export PYTHONPATH=\$HOME/$REMOTE_DIR/code:\$CNO_UNDER_PRESSURE
 export KMP_DUPLICATE_LIB_OK=TRUE OMP_NUM_THREADS=1
+cd \$HOME/$REMOTE_DIR/code
 python -c 'import mace, torch_dftd, ase, phonopy; print(\"   environnement ok\")'
 [ -d \"\$CNO_UNDER_PRESSURE/cno_csp\" ] || { echo \"   projet jumeau ABSENT: \$CNO_UNDER_PRESSURE\"; exit 1; }
 echo '   projet jumeau présent'
-[ -f $REMOTE_MODEL ] || { echo '   checkpoint MACE ABSENT: $REMOTE_MODEL'; exit 1; }
-MACE_MODEL=$REMOTE_MODEL python - <<'PY'
-from ase.build import bulk
-from cno_csp.relax import get_calculator
-a = bulk('C','diamond',a=3.567); a.calc = get_calculator('mace')
-print('   E(diamant) distante = %.6f eV' % a.get_potential_energy())
-PY
+if [ -n '$REMOTE_MODEL' ]; then
+  [ -f '$REMOTE_MODEL' ] || { echo '   checkpoint MACE ABSENT: $REMOTE_MODEL'; exit 1; }
+  echo \"   E(diamant) distante = \$(MACE_MODEL='$REMOTE_MODEL' python hpc/e_diamant.py) eV\"
+else
+  echo '   checkpoint : resolu au lancement du job par hpc/e_diamant.py'
+  ls \$HOME/.cache/mace/ 2>/dev/null | sed 's|^|     candidat: |' || echo '     cache mace absent'
+fi
 echo \"   templates: \$(ls ~/$REMOTE_DIR/templates/$TEMPLATES/cif | wc -l)\"
 "
 
@@ -83,6 +91,5 @@ modèle et aucun résultat n'est comparable.
 Soumission :
   ssh $MACHINE
   cd ~/$REMOTE_DIR
-  sbatch --export=ALL,TEMPLATES=templates/$TEMPLATES,N_SHARDS=20,OUT=runs/lot1.json \\
-         code/hpc/yargla_lot.slurm
+  $SUBMIT
 FIN

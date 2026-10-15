@@ -64,16 +64,39 @@ en direct, utiliser l'interpréteur directement.
 
 ## Où tournent les calculs
 
-En local sur le Mac pour la mise au point (`scripts/relax_lot.py`), sur
-**Yargla** pour les campagnes : `hpc/stage.sh yargla <lot>` transfère code et
-templates puis vérifie à distance l'environnement, la présence du projet
-jumeau et — surtout — que le checkpoint MACE y donne la **même** énergie du
-diamant qu'ici (−18.149009 eV à 2 atomes ; deux checkpoints cohabitent dans
-`~/.cache/mace` sur Yargla et ce ne sont pas le même modèle, 13 meV d'écart).
-`hpc/yargla_lot.slurm` lance ensuite N_SHARDS processus d'un thread : MACE en
-float64 sur CPU ne sature pas les cœurs, c'est le nombre de *processus* qui
-occupe le nœud. Chaque shard réécrit son JSON après chaque structure, donc un
-lot interrompu reste exploitable.
+En local sur le Mac pour la mise au point, sur **Yargla** (CPU, 40 cœurs) ou
+sur le **H100 de vm1** pour les campagnes. Le choix se fait sur les bancs du
+jumeau — coût d'un appel énergie + forces MACE float64 sans D3 :
+
+| atomes | Yargla 1 cœur | H100 vm1 | gain |
+|---|---|---|---|
+| 20 | 1391 ms | 62 ms | ×23 |
+| 44 | 3407 ms | 37 ms | ×93 |
+| 352 | 28474 ms | 89 ms | ×318 |
+
+**Le gain croît avec la taille**, et ce projet travaille justement à 61–62
+atomes dès qu'on veut éviter l'interaction d'images. En débit, le H100 partagé
+entre 16 processus vaut ~150 cœurs Yargla. Deux réserves : D3 coûte cher sur
+GPU (×4.7 à 352 atomes, alors que le pool 3D s'en passe), et la concurrence
+sature vers 8 processus, d'où `N_SHARDS=8`.
+
+    bash hpc/stage.sh vm1 templates_dia_t1      # ou : yargla
+
+`stage.sh` transfère code et templates, puis vérifie **à distance**
+l'environnement, la présence du projet jumeau et — surtout — que le checkpoint
+MACE y donne la **même** énergie du diamant qu'ici : −18.149009 eV à 2 atomes.
+Deux checkpoints cohabitent dans `~/.cache/mace` sur Yargla et ce ne sont pas
+le même modèle (13 meV d'écart, aucune erreur levée, résultats silencieusement
+incomparables).
+
+`hpc/yargla_lot.slurm` (40 tâches CPU) et `hpc/vm1_lot.slurm` (8 processus sur
+un GPU) lancent ensuite N_SHARDS processus d'un thread : MACE en float64 ne
+sature pas les cœurs, c'est le nombre de *processus* qui occupe la machine. Les
+shards sont entrelacés pour que chacun reçoive un mélange de petites et de
+grandes mailles, et chacun réécrit son JSON après chaque structure — un lot
+interrompu reste exploitable. Sur vm1 le checkpoint n'est pas codé en dur : le
+script le **résout** en gardant celui qui reproduit l'énergie du diamant du Mac
+(`hpc/e_diamant.py`).
 
 Prérequis : `C_N_O_under_pressure` doit déjà être déployé sur la machine, ce
 projet importe son outillage. `CNO_UNDER_PRESSURE` le localise.

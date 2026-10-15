@@ -64,7 +64,7 @@ projet jumeau.
 même structure : `require_ternary` vaut `True` par défaut, et les binaires
 sont écartés à l'énumération, pas filtrés après. Cela comprend `C3N4` de la
 lacune isolée et les `CxOy` des paires de lacunes. Ils restent des **témoins
-de validation** de la méthode (§12), jamais des candidats. L'option
+de validation** de la méthode (§13), jamais des candidats. L'option
 `--binaires` existe pour reproduire la comparaison avec la campagne 1 du
 jumeau, qui ne l'exigeait pas.
 
@@ -298,7 +298,56 @@ Réutilisées sans modification depuis le projet jumeau :
   azotes tricoordonnés qui s'aplanissent. Ici le risque est concentré sur les
   motifs `sp2` et `oterm`, par construction.
 
-## 9. L'objectif : pourquoi E_f brut ne suffit pas
+## 9. Sur quelle machine, et pourquoi
+
+Trois machines, et le choix se fait sur des bancs **mesurés** par le projet
+jumeau (`scripts/bench/bench_calls.py`, `runs_random/bench_calls/`) : coût d'un
+appel énergie + forces MACE-MP en float64, sans dispersion.
+
+| atomes | Yargla 1 cœur | Yargla 8 cœurs | H100 de vm1 | gain GPU / 1 cœur |
+|---|---|---|---|---|
+| 20 | 1391 ms | 362 ms | 62 ms | ×23 |
+| 44 | 3407 ms | 846 ms | 37 ms | ×93 |
+| 352 | 28474 ms | 6827 ms | 89 ms | ×318 |
+
+**Le gain du GPU croît avec la taille** : en dessous de ~50 atomes le H100 est
+sous-occupé et le transfert domine. C'est décisif ici, parce que la taille
+n'est pas un paramètre libre — les templates exempts d'interaction d'images
+(§5) font **61–62 atomes**, en plein régime où le GPU gagne deux ordres de
+grandeur par appel.
+
+En débit total plutôt que par appel, le H100 partagé entre 16 processus débite
+35.8 appels/s sur 44 atomes avec D3, contre 1/4.256 = 0.235 appel/s par cœur
+Yargla : **l'équivalent de ~150 cœurs, soit presque quatre nœuds Yargla**.
+
+Deux réserves que les bancs rendent visibles :
+
+- **D3 coûte cher sur GPU**, en relatif : à 352 atomes, 89 ms sans dispersion
+  contre 417 ms avec. Le pool 3D — 38 des 41 templates du lot ternaire, qui se
+  relaxent sans D3 — est donc le meilleur cas du GPU ; les pools 0D/1D/2D y
+  gagnent moins ;
+- **la concurrence sature vers 8 processus** (33.5 appels/s contre 35.8 à 16),
+  pendant que la latence par appel double (233 ms contre 445). D'où
+  `N_SHARDS=8` par défaut dans `hpc/vm1_lot.slurm` : 94 % du débit pour deux
+  fois moins d'attente par structure.
+
+**Répartition retenue.** Mise au point et petits lots sur le Mac ; étage 1
+(quelques dizaines de structures) indifféremment sur Yargla ou vm1, les deux
+suffisent ; étages 2 et 3 (milliers de configurations à 61+ atomes) sur le GPU
+de vm1, où l'écart est de deux ordres de grandeur par appel.
+
+**Comparabilité entre machines, vérifiée et non supposée.** Deux checkpoints
+MACE cohabitent dans `~/.cache/mace` sur Yargla et ce ne sont pas le même
+modèle : 13 meV d'écart sur l'énergie du diamant, aucune erreur levée, et des
+résultats silencieusement incomparables. `hpc/e_diamant.py` imprime cette
+énergie sur six décimales et sert de **signature du modèle** : `stage.sh` la
+compare entre le Mac et la machine distante, `vm1_lot.slurm` s'en sert pour
+**résoudre** le bon checkpoint au lieu de coder son nom en dur, et
+`yargla_lot.slurm` en fait une assertion au démarrage. Mesuré sur ce Mac :
+**−18.149009 eV** pour 2 atomes à a = 3.567 Å, identique à la valeur publiée
+par le jumeau pour `5yyxdm76` sur Yargla.
+
+## 10. L'objectif : pourquoi E_f brut ne suffit pas
 
 L'enthalpie de formation, au même niveau de théorie que la campagne
 (`funnel_table.mu_elements`) :
@@ -332,7 +381,7 @@ composition**. Ce qui ne l'est pas : le classement absolu entre compositions
 différentes. C'est le DFT qui arbitre, et les entrées sont préparées par
 `cno_csp.dft`.
 
-## 10. Stratégie de recherche sur (x, y, z)
+## 11. Stratégie de recherche sur (x, y, z)
 
 Trois étages, du certain au heuristique.
 
@@ -365,7 +414,7 @@ L'étage 1 est à écrire et à lancer ; les étages 2 et 3 ne se conçoivent
 correctement qu'avec la carte de l'étage 1 sous les yeux, et leurs paramètres
 (quelles compositions, quels amas) en dépendent.
 
-## 11. Ce que la méthode garantit, et ce qu'elle ne garantit pas
+## 12. Ce que la méthode garantit, et ce qu'elle ne garantit pas
 
 Garanti :
 
@@ -392,7 +441,7 @@ Non garanti, et à vérifier calcul par calcul :
 - la **stabilité thermodynamique** : voir §8, l'attente raisonnable est
   +0.2 à +0.8 eV/atome au-dessus de l'enveloppe moléculaire.
 
-## 12. Première validation : la méthode retrouve le meilleur candidat du jumeau
+## 13. Première validation : la méthode retrouve le meilleur candidat du jumeau
 
 *(Témoin de validation, pas candidat : c'est un binaire, donc exclu des
 campagnes par le cahier des charges — obtenu ici avec `--binaires`.)*
@@ -409,7 +458,7 @@ premier terme d'une famille, obtenu sans base de données. La conception est
 cohérente avec un résultat déjà établi par une voie indépendante — et elle
 place ce résultat dans une série, ce que la voie « template MP » ne faisait pas.
 
-## 13. Arborescence et intégration
+## 14. Arborescence et intégration
 
     dia_cno/lattice.py     réseau diamant : demi-liaisons périodiques, symétrie,
                            verifie_reseau() (audit des bords avant énumération)
@@ -419,6 +468,10 @@ place ce résultat dans une série, ce que la voie « template MP » ne faisait 
     scripts/gen_templates.py     CLI : lacunes -> cif/ + templates_manifest.json
     scripts/relax_lot.py         CLI : relaxation MACE + validation + E_f + ΔE_dec
     scripts/carte_composition.py CLI : domaine (x, y, z) atteignable, sans calcul d'énergie
+    hpc/e_diamant.py             signature du modèle MACE (énergie du diamant, 6 décimales)
+    hpc/stage.sh                 transfert + vérifications distantes (yargla, vm1)
+    hpc/yargla_lot.slurm         40 tâches CPU, shards entrelacés
+    hpc/vm1_lot.slurm            8 processus sur un H100, checkpoint résolu au lancement
 
 Le manifeste est écrit **au format du projet jumeau**
 (`templates_manifest.json` : `source_id`, `decoration`, `child_formula`,

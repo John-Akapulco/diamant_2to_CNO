@@ -240,10 +240,36 @@ maille 2×1×1, templates distincts après réduction primitive) :
 | 6 | 37.5 % | 3D:1 2D:7 | 3D:5 2D:41 **1D:2** |
 | 7 | 43.8 % | 2D:3 | 2D:24 |
 
-**C'est un générateur de charpentes 3D**, qui bascule vers le 2D au-delà de
-~30 % de lacunes. Le 1D n'apparaît qu'à 37 % et seulement avec les motifs π.
-Le **0D n'apparaît jamais** — et ce n'est pas un manque d'exploration, c'est
-structural.
+Même balayage sur la maille **2×2×1 (32 sites)**, décoration canonique,
+ternaires :
+
+| k | % lacunes | atomes | ternaires | dimensionnalité |
+|---|---|---|---|---|
+| 2 | 6.2 % | 30 | 2 | 3D:2 |
+| 3 | 9.4 % | 29 | 17 | 3D:17 |
+| 4 | 12.5 % | 28 | 69 | 3D:69 |
+| 5 | 15.6 % | 27 | 128 | 3D:124 2D:4 |
+| 6 | 18.8 % | 26 | 303 | 3D:280 2D:23 |
+
+**La comparaison des deux mailles à concentration ÉGALE est le résultat
+important**, et elle corrige la lecture naïve du premier tableau :
+
+| % lacunes | 16 sites | 32 sites |
+|---|---|---|
+| 12.5 % | 17 % de 2D | **1 %** de 2D |
+| 18.8 % | 37 % de 2D | **7.6 %** de 2D |
+
+À taux de lacunes identique, la part de 2D s'effondre quand la maille grandit.
+La raison est celle du §5 : dans une petite maille, quelques lacunes **plus
+leurs images périodiques** forment un *plan* continu qui tranche le cristal.
+La basse dimensionnalité des petites mailles est donc, pour une bonne part, un
+**artefact d'interaction d'images** et non une propriété du motif local.
+
+**C'est donc un générateur de charpentes 3D, et davantage encore qu'il n'y
+paraît.** Le 2D n'est abondant qu'à forte concentration de lacunes et en
+petite maille ; le 1D n'apparaît qu'à 37 % de lacunes et seulement avec les
+motifs π ; le **0D n'apparaît jamais** — et ce dernier point n'est pas un
+manque d'exploration, c'est structural.
 
 **Pourquoi le 0D est fermé dès qu'on exige du carbone.** Le carbone demande
 z ≥ 3 ; dans un fragment fini du réseau diamant, seuls les atomes *intérieurs*
@@ -271,6 +297,11 @@ binaire (écarté), soit non décorable. Les motifs π (C sp² + O terminal)
 atténuent le problème — ils triplent le nombre de templates et font apparaître
 le 1D — mais ne l'annulent pas : testé jusqu'à 44 % de lacunes, aucun 0D
 ternaire.
+
+**Dimensionnement de l'étage 1, au passage.** La maille 32 sites donne 519
+templates ternaires jusqu'à k = 6, et le nombre croît vite (2, 17, 69, 128,
+303). C'est ce nombre, et non celui des ensembles de lacunes, qui fixe le coût
+en relaxations — et c'est lui qui justifie le GPU dès l'étage 1 étendu.
 
 **Conséquence pour la suite.** Si des cristaux moléculaires C-N-O sont voulus,
 cette méthode n'est pas la bonne porte : il faudrait soit relâcher la
